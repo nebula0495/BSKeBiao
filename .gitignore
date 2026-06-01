@@ -1,4 +1,20 @@
-node_modules
+﻿node_modules
 dist
 android
 .capacitor
+
+# Build outputs
+*.apk
+*.aab
+*.aar
+
+# Logs
+*.log
+
+# IDE
+.idea/caches/
+*.tsbuildinfo
+
+# OS
+Thumbs.db
+.DS_Store

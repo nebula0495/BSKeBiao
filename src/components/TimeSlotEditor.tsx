@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useScheduleStore } from '../store'
 import { loadTimeTemplate, saveTimeTemplate } from '../utils/storage'
 import type { TimeSlotTemplate } from '../types/schedule'
-import { getDefaultTimeTemplate } from '../types/schedule'
 
 interface Props {
   onClose: () => void
@@ -10,18 +9,25 @@ interface Props {
 
 export default function TimeSlotEditor({ onClose }: Props) {
   const { schedule, setCourses } = useScheduleStore()
-  const defaultTemplate = getDefaultTimeTemplate()
   const [slots, setSlots] = useState<TimeSlotTemplate[]>(() => loadTimeTemplate())
   const [activeCount, setActiveCount] = useState(() => {
     const loaded = loadTimeTemplate()
     return loaded.length || 12
   })
-  const [applied, setApplied] = useState(false)
+  const [appliedCount, setAppliedCount] = useState<number | null>(null)
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const oldTemplate = defaultTemplate
+  // 打开编辑器时已保存的模板：已有课程的时间是按它录入的，映射节次要以它为准
+  const prevTemplate = useRef(loadTimeTemplate()).current
+
+  useEffect(() => {
+    return () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current)
+    }
+  }, [])
 
   const updateSlot = (period: number, field: 'startTime' | 'endTime', value: string) => {
-    setApplied(false)
+    setAppliedCount(null)
     setSlots(prev =>
       prev.map(s => (s.period === period ? { ...s, [field]: value } : s))
     )
@@ -31,7 +37,7 @@ export default function TimeSlotEditor({ onClose }: Props) {
     const newTemplate = slots.slice(0, activeCount)
 
     const oldTimeToPeriod: Record<string, number> = {}
-    for (const tpl of oldTemplate) {
+    for (const tpl of prevTemplate) {
       oldTimeToPeriod[tpl.startTime] = tpl.period
     }
 
@@ -55,9 +61,11 @@ export default function TimeSlotEditor({ onClose }: Props) {
     })
 
     setCourses(updatedCourses)
-    setApplied(true)
+    saveTimeTemplate(newTemplate)
+    setAppliedCount(changedCount)
 
-    setTimeout(() => setApplied(false), 2500)
+    if (resetTimer.current) clearTimeout(resetTimer.current)
+    resetTimer.current = setTimeout(() => setAppliedCount(null), 2500)
   }
 
   const handleSave = () => {
@@ -82,7 +90,7 @@ export default function TimeSlotEditor({ onClose }: Props) {
                   ...styles.countBtn,
                   ...(activeCount === n ? styles.countBtnActive : {}),
                 }}
-                onClick={() => { setActiveCount(n); setApplied(false) }}
+                onClick={() => { setActiveCount(n); setAppliedCount(null) }}
               >
                 {n}
               </button>
@@ -113,16 +121,16 @@ export default function TimeSlotEditor({ onClose }: Props) {
 
         {schedule.courses.length > 0 && (
           <button
-            style={applied ? styles.applyDoneBtn : styles.applyBtn}
+            style={appliedCount !== null ? styles.applyDoneBtn : styles.applyBtn}
             onClick={handleApplyToCourses}
-            disabled={applied}
+            disabled={appliedCount !== null}
           >
-            {applied ? (
+            {appliedCount !== null ? (
               <>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                已更新 {schedule.courses.length} 门课程
+                {appliedCount > 0 ? `已更新 ${appliedCount} 门课程` : '没有匹配到可更新的课程'}
               </>
             ) : (
               <>

@@ -3,8 +3,7 @@ import { useScheduleStore } from '../store'
 import { parseHTMLSchedule } from '../utils/parser'
 import { extractTextFromDoc } from '../utils/docExtractor'
 import type { Course, ParsedCourse } from '../types/schedule'
-import { COURSE_COLORS } from '../types/schedule'
-import * as mammoth from 'mammoth'
+import { COURSE_COLORS, DAY_SHORT_LABELS } from '../types/schedule'
 
 function deduceWeekType(weeks: number[]): 'all' | 'odd' | 'even' | 'custom' {
   if (weeks.length === 0) return 'all'
@@ -20,7 +19,7 @@ interface Props {
 }
 
 export default function WebViewModal({ onClose }: Props) {
-  const { addCourse } = useScheduleStore()
+  const { schedule, setCourses } = useScheduleStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [importedFileName, setImportedFileName] = useState('')
@@ -57,9 +56,11 @@ export default function WebViewModal({ onClose }: Props) {
 
       let htmlText = ''
       let usedMammoth = false
+      let docRawText = ''
 
       try {
-        const result = await mammoth.convertToHtml({ arrayBuffer })
+        const { convertToHtml } = await import('mammoth')
+        const result = await convertToHtml({ arrayBuffer })
         htmlText = result.value
         usedMammoth = true
       } catch (mammothErr) {
@@ -72,8 +73,8 @@ export default function WebViewModal({ onClose }: Props) {
           return
         }
 
-        const rawText = extractTextFromDoc(arrayBuffer)
-        if (!rawText || rawText.trim().length < 5) {
+        docRawText = extractTextFromDoc(arrayBuffer)
+        if (!docRawText || docRawText.trim().length < 5) {
           setError(
             '无法解析此文件。\n如果这是 .doc 文件（旧版格式），请用 Word 打开后另存为 .docx 格式再导入。\n路径：文件 → 另存为 → 文件类型选择 "Word 文档 (*.docx)"'
           )
@@ -81,15 +82,14 @@ export default function WebViewModal({ onClose }: Props) {
           return
         }
 
-        htmlText = `<div>${rawText.replace(/\n/g, '<br>')}</div>`
+        htmlText = `<div>${docRawText.replace(/\n/g, '<br>')}</div>`
       }
 
       const parseResult = parseHTMLSchedule(htmlText)
       if (!usedMammoth && parseResult.courses.length === 0) {
-        const rawText = extractTextFromDoc(arrayBuffer)
-        if (rawText && rawText.trim().length >= 5) {
+        if (docRawText && docRawText.trim().length >= 5) {
           setError(
-            `已从旧版 .doc 文件中提取到文本但未能识别出课表，请用 Word 另存为 .docx 格式再导入。\n提取到的内容预览：\n${rawText.substring(0, 200)}...`
+            `已从旧版 .doc 文件中提取到文本但未能识别出课表，请用 Word 另存为 .docx 格式再导入。\n提取到的内容预览：\n${docRawText.substring(0, 200)}...`
           )
         } else {
           setError(
@@ -116,6 +116,7 @@ export default function WebViewModal({ onClose }: Props) {
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (file) processFile(file)
   }
 
@@ -163,6 +164,7 @@ export default function WebViewModal({ onClose }: Props) {
     const nameColorMap: Record<string, number> = {}
     let nextColor = 0
 
+    const newCourses: Course[] = []
     parseResult.courses.forEach((pc, idx) => {
       if (!selectedIndices.has(idx)) return
 
@@ -173,7 +175,7 @@ export default function WebViewModal({ onClose }: Props) {
 
       const [startTime, endTime] = pc.timeSlot.split('-')
 
-      const course: Course = {
+      newCourses.push({
         id: `imported_${Date.now()}_${idx}`,
         name: pc.name,
         teacher: pc.teacher,
@@ -185,9 +187,10 @@ export default function WebViewModal({ onClose }: Props) {
         weekType: deduceWeekType(pc.weeks),
         color: COURSE_COLORS[nameColorMap[pc.name]],
         note: '',
-      }
-      addCourse(course)
+      })
     })
+
+    setCourses([...schedule.courses, ...newCourses])
 
     setImportDone(true)
     setTimeout(() => onClose(), 1200)
@@ -329,7 +332,7 @@ export default function WebViewModal({ onClose }: Props) {
                       <div style={styles.resultContent}>
                         <div style={styles.resultName}>{course.name || '(未识别)'}</div>
                         <div style={styles.resultMeta}>
-                          <span>周{course.dayOfWeek}</span>
+                          <span>周{DAY_SHORT_LABELS[course.dayOfWeek] || course.dayOfWeek}</span>
                           <span>{course.timeSlot}</span>
                           {course.location ? <span>📍{course.location}</span> : null}
                           {course.teacher ? <span>👤{course.teacher}</span> : null}

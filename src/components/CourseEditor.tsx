@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useScheduleStore } from '../store'
 import type { Course } from '../types/schedule'
 import { COURSE_COLORS } from '../types/schedule'
@@ -9,14 +9,14 @@ interface Props {
   onClose: () => void
 }
 
-const defaultCourse = (): Partial<Course> => ({
+const defaultCourse = (totalWeeks: number): Partial<Course> => ({
   name: '',
   teacher: '',
   location: '',
   dayOfWeek: 1,
   startTime: '08:00',
   endTime: '09:40',
-  weeks: Array.from({ length: 18 }, (_, i) => i + 1),
+  weeks: Array.from({ length: totalWeeks }, (_, i) => i + 1),
   weekType: 'all',
   color: COURSE_COLORS[0],
   note: '',
@@ -28,8 +28,21 @@ export default function CourseEditor({ courseId, onClose }: Props) {
   const existingCourse = courseId ? schedule.courses.find(c => c.id === courseId) : null
 
   const [form, setForm] = useState<Partial<Course>>(
-    existingCourse ? { ...existingCourse } : defaultCourse()
+    existingCourse ? { ...existingCourse } : defaultCourse(schedule.totalWeeks)
   )
+
+  const quickSlots = useMemo(() => {
+    const tpl = loadTimeTemplate()
+    const pairs: { period: number; start: string; end: string }[] = []
+    for (let i = 0; i < tpl.length - 1; i += 2) {
+      pairs.push({
+        period: tpl[i].period,
+        start: tpl[i].startTime,
+        end: tpl[i + 1].endTime,
+      })
+    }
+    return pairs.slice(0, 6)
+  }, [])
 
   useEffect(() => {
     if (existingCourse) {
@@ -76,16 +89,23 @@ export default function CourseEditor({ courseId, onClose }: Props) {
   }
 
   const handleSave = () => {
-    if (!form.name?.trim()) return
+    const name = form.name?.trim()
+    if (!name) return
+
+    let startTime = form.startTime || '08:00'
+    let endTime = form.endTime || '09:40'
+    if (startTime > endTime) {
+      [startTime, endTime] = [endTime, startTime]
+    }
 
     const course: Course = {
       id: existingCourse?.id || `course_${Date.now()}`,
-      name: form.name || '',
+      name,
       teacher: form.teacher || '',
       location: form.location || '',
       dayOfWeek: form.dayOfWeek || 1,
-      startTime: form.startTime || '08:00',
-      endTime: form.endTime || '09:40',
+      startTime,
+      endTime,
       weeks: form.weeks || [],
       weekType: form.weekType || 'all',
       color: form.color || COURSE_COLORS[0],
@@ -188,35 +208,24 @@ export default function CourseEditor({ courseId, onClose }: Props) {
           <div style={styles.field}>
             <label style={styles.label}>快速选择节次（每门课两节连上）</label>
             <div style={styles.quickSlots}>
-              {(() => {
-                const tpl = loadTimeTemplate()
-                const pairs: { period: number; start: string; end: string }[] = []
-                for (let i = 0; i < tpl.length - 1; i += 2) {
-                  pairs.push({
-                    period: tpl[i].period,
-                    start: tpl[i].startTime,
-                    end: tpl[i + 1].endTime,
-                  })
-                }
-                return pairs.slice(0, 6).map(pair => {
-                  const isActive = form.startTime === pair.start && form.endTime === pair.end
-                  return (
-                    <button
-                      key={pair.period}
-                      style={{
-                        ...styles.quickSlotBtn,
-                        ...(isActive ? styles.quickSlotBtnActive : {}),
-                      }}
-                      onClick={() => {
-                        handleChange('startTime', pair.start)
-                        handleChange('endTime', pair.end)
-                      }}
-                    >
-                      第{pair.period}-{pair.period + 1}节
-                    </button>
-                  )
-                })
-              })()}
+              {quickSlots.map(pair => {
+                const isActive = form.startTime === pair.start && form.endTime === pair.end
+                return (
+                  <button
+                    key={pair.period}
+                    style={{
+                      ...styles.quickSlotBtn,
+                      ...(isActive ? styles.quickSlotBtnActive : {}),
+                    }}
+                    onClick={() => {
+                      handleChange('startTime', pair.start)
+                      handleChange('endTime', pair.end)
+                    }}
+                  >
+                    第{pair.period}-{pair.period + 1}节
+                  </button>
+                )
+              })}
             </div>
           </div>
 

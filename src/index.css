@@ -97,6 +97,11 @@ input, textarea, select {
   100% { width: 100%; }
 }
 
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
 }

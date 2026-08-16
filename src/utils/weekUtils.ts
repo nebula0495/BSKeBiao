@@ -1,18 +1,28 @@
 import type { ScheduleData } from '../types/schedule'
 
+function parseDateOnly(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y || 2000, (m || 1) - 1, d || 1)
+}
+
+function toLocalDateString(d: Date): string {
+  const p = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
 export function getCurrentWeek(startDate: string, totalWeeks: number): number {
-  const start = new Date(startDate)
+  const start = parseDateOnly(startDate)
   const now = new Date()
-  const diffMs = now.getTime() - start.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime()
+  const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const diffDays = Math.floor((nowMidnight - startMidnight) / 86400000)
   const week = Math.floor(diffDays / 7) + 1
   return Math.max(1, Math.min(week, totalWeeks))
 }
 
 export function getWeekDateRange(startDate: string, weekNum: number): string {
-  const start = new Date(startDate)
-  const monday = new Date(start)
-  monday.setDate(start.getDate() + (weekNum - 1) * 7)
+  const monday = parseDateOnly(startDate)
+  monday.setDate(monday.getDate() + (weekNum - 1) * 7)
 
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
@@ -37,13 +47,13 @@ export function isCourseActiveThisWeek(
 
 export function getDefaultSchedule(): ScheduleData {
   const now = new Date()
-  const semesterMonths = [2, 9]
-  let semStartMonth = semesterMonths[0]
-  for (const m of semesterMonths) {
-    if (now.getMonth() >= m - 1) semStartMonth = m
-  }
+  const month = now.getMonth()
+  // 2月–8月属于当年春季学期；9月–次年1月属于秋季学期（1月归上一年9月开学）
+  const isSpring = month >= 1 && month <= 7
+  const year = isSpring || month >= 8 ? now.getFullYear() : now.getFullYear() - 1
+  const semStartMonth = isSpring ? 2 : 9
 
-  const startDate = new Date(now.getFullYear(), semStartMonth - 1, 1)
+  const startDate = new Date(year, semStartMonth - 1, 1)
   while (startDate.getDay() !== 1) {
     startDate.setDate(startDate.getDate() + 1)
   }
@@ -51,8 +61,8 @@ export function getDefaultSchedule(): ScheduleData {
   return {
     id: 'default',
     name: '不上课表',
-    semester: `${now.getFullYear()}年${semStartMonth === 2 ? '春季' : '秋季'}学期`,
-    startDate: startDate.toISOString().split('T')[0],
+    semester: `${year}年${isSpring ? '春季' : '秋季'}学期`,
+    startDate: toLocalDateString(startDate),
     totalWeeks: 18,
     courses: [],
     createdAt: now.toISOString(),

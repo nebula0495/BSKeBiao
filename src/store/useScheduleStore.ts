@@ -73,10 +73,14 @@ export const useScheduleStore = create<ScheduleState>((set, get) => {
     },
 
     updateScheduleInfo: (info) => {
-      const { schedule } = get()
+      const { schedule, currentWeek } = get()
       const newSchedule = { ...schedule, ...info }
       saveSchedule(newSchedule)
-      set({ schedule: newSchedule })
+      const totalWeeks = newSchedule.totalWeeks
+      set({
+        schedule: newSchedule,
+        ...(currentWeek > totalWeeks && { currentWeek: totalWeeks }),
+      })
     },
 
     resetSchedule: () => {

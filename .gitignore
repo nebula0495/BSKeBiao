@@ -18,3 +18,5 @@ android
 # OS
 Thumbs.db
 .DS_Store
+# Security scanner artifacts
+.mimosa/

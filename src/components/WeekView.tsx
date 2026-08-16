@@ -25,6 +25,9 @@ export default function WeekView({ currentWeek, onEditCourse }: Props) {
     let nextColor = 0
 
     const withColor = active.map(c => {
+      if (c.color) {
+        return { ...c, colorIndex: -1 }
+      }
       if (!(c.name in nameColorMap)) {
         nameColorMap[c.name] = nextColor % COURSE_COLORS.length
         nextColor++

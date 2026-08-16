@@ -75,7 +75,7 @@ function tryExtractASCIIChunk(bytes: Uint8Array, start: number): string {
       (b >= 0x41 && b <= 0x5A) ||
       (b >= 0x30 && b <= 0x39) ||
       b === 0x20 || b === 0x2D || b === 0x2F ||
-      b === 0x28 || b === 0x29 || b === 0x28
+      b === 0x28 || b === 0x29 || b === 0x2C
     ) {
       chars.push(b)
     } else {

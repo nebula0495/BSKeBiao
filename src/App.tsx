@@ -8,7 +8,6 @@ import SemesterSettings from './components/SemesterSettings'
 import TimeSlotEditor from './components/TimeSlotEditor'
 import { useScheduleStore } from './store'
 import { DAY_LABELS, DAY_SHORT_LABELS } from './types/schedule'
-import { getWeekDateRange } from './utils/weekUtils'
 
 export default function App() {
   const { schedule, currentWeek } = useScheduleStore()
@@ -28,8 +27,6 @@ export default function App() {
   const [touchStartX, setTouchStartX] = useState(0)
   const [touchDeltaX, setTouchDeltaX] = useState(0)
   const [isSwiping, setIsSwiping] = useState(false)
-
-  const dateRange = getWeekDateRange(schedule.startDate, currentWeek)
 
   useEffect(() => {
     if (splashDone && dayBarRef.current) {
@@ -110,8 +107,6 @@ export default function App() {
         </div>
 
         <WeekPicker />
-
-        <div style={styles.dateRange}>{dateRange}</div>
 
         <div ref={dayBarRef} style={styles.dayBar}>
           {[1, 2, 3, 4, 5, 6, 7].map(day => (
@@ -234,7 +229,7 @@ const styles: Record<string, React.CSSProperties> = {
   dayHeaderWeek: { fontSize: 12, color: '#9CA3AF', fontWeight: 500 },
   fab: {
     position: 'fixed', bottom: 'calc(24px + env(safe-area-inset-bottom, 16px))',
-    right: 'calc(50% - 224px)', zIndex: 20,
+    left: '50%', transform: 'translateX(-50%)', zIndex: 20,
   },
   fabBtn: {
     width: 52, height: 52, borderRadius: 26,

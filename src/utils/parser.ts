@@ -186,7 +186,11 @@ function extractTimeSlot(text: string): { startTime: string; endTime: string } |
   const timeRangeRegex = /(\d{1,2}:\d{2})\s*[-~至到—]\s*(\d{1,2}:\d{2})/
   let match = cleaned.match(timeRangeRegex)
   if (match) {
-    return { startTime: match[1], endTime: match[2] }
+    const pad = (t: string) => {
+      const [h, m] = t.split(':')
+      return `${h.padStart(2, '0')}:${m}`
+    }
+    return { startTime: pad(match[1]), endTime: pad(match[2]) }
   }
 
   const singleTimeRegex = /(\d{1,2}):(\d{2})/
@@ -479,12 +483,13 @@ function extractWeekNumbers(text: string): number[] {
   }
 
   if (weeks.length === 0) {
+    // 先剔除“第X-Y节”类节次描述，避免把节次区间误判为周数
+    const textWithoutPeriods = text.replace(/第\s*\d+(?:\s*[-~至到—]\s*\d+)?\s*[节大]/g, ' ')
     const bareRange = /(\d{1,2})\s*[-~至到—]\s*(\d{1,2})(?![\d:])/g
-    let bMatch
-    while ((bMatch = bareRange.exec(text)) !== null) {
+    for (const bMatch of textWithoutPeriods.matchAll(bareRange)) {
       const start = parseInt(bMatch[1])
       const end = parseInt(bMatch[2])
-      if (start >= 1 && start <= 25 && end >= 1 && end <= 25 && start < end && end - start >= 1) {
+      if (start >= 1 && start <= 25 && end >= 1 && end <= 25 && start < end) {
         for (let i = start; i <= end; i++) {
           if (!weeks.includes(i)) weeks.push(i)
         }
